@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Título actualizado a v2.0 -->
+    <title>Selector de Cámaras Telycam v2.0 - Merlin Distributor</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuración de fuente Inter (preferida por Tailwind) -->
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <style>
+        /* Usar la fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Estilo para el "toast" de notificación */
+        #toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: #2d3748; /* Color gris oscuro */
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            opacity: 0;
+            transform: translateY(100%);
+            transition: all 0.3s ease-in-out;
+            z-index: 50;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Pequeños ajustes para selects */
+        select, input[type="text"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20class%3D%22feather%20feather-chevron-down%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E');
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.25em;
+            padding-right: 2.5rem; /* Espacio para el icono */
+        }
+        
+        /* --- ESTILOS PARA COMPARACIÓN --- */
+        #comparison-tray {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: #1f2937; /* bg-gray-800 */
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 40;
+            max-height: 25vh;
+            overflow-y: auto;
+        }
+        #comparison-tray.show {
+            transform: translateY(0);
+        }
+        #compare-list li {
+            display: inline-block;
+            background-color: #4b5563; /* bg-gray-600 */
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px; /* rounded-full */
+            font-size: 0.875rem; /* text-sm */
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        #compare-list span {
+            cursor: pointer;
+            margin-left: 0.5rem;
+            font-weight: bold;
+            color: #d1d5db; /* text-gray-300 */
+        }
+        #compare-list span:hover {
+            color: white;
+        }
+
+        /* --- ESTILOS PARA MODAL DE COMPARACIÓN --- */
+        #compare-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: none; /* Oculto por defecto */
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+        #compare-modal.show {
+            display: flex;
+        }
+        #compare-modal-content {
+            background-color: white;
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 90vw;
+            max-height: 90vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        #compare-modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #compare-modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        #compare-modal-body table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #compare-modal-body th,
+        #compare-modal-body td {
+            border: 1px solid #d1d5db; /* border-gray-300 */
+            padding: 0.75rem;
+            text-align: left;
+            font-size: 0.875rem; /* text-sm */
+        }
+        #compare-modal-body th {
+            background-color: #f3f4f6; /* bg-gray-100 */
+            min-width: 150px;
+        }
+        #compare-modal-body td:first-child {
+            font-weight: 600; /* font-semibold */
+            background-color: #f9fafb; /* bg-gray-50 */
+        }
+        #compare-modal-body .highlight-yes {
+            color: #059669; /* text-green-600 */
+            font-weight: 600;
+        }
+        #compare-modal-body .highlight-no {
+            color: #dc2626; /* text-red-600 */
+        }
+        /* Estilo para SKU Choice */
+        #compare-modal-body .highlight-sku {
+            color: #ca8a04; /* text-yellow-600 */
+            font-weight: 600;
+        }
+
+    </style>
+</head>
+<body class="h-full bg-gray-100 p-4 md:p-8 pb-32"> <!-- Padding-bottom para dejar espacio a la bandeja -->
+
+    <div class="container mx-auto max-w-7xl">
+
+        <!-- Encabezado -->
+        <header class="mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <!-- Branding de Telycam (Logo) -->
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                    <!-- CAMBIO: Se reemplazó el logo local por la URL y se ajustó el alto a h-8 -->
+                    <img src="https://telycam.com/wp-content/uploads/2025/08/微信图片_2025-08-05_153151_514-768x118.png" alt="Telycam Logo" class="h-8 w-auto mr-4" onerror="this.style.display='none'; document.getElementById('telycam-text-fallback').style.display='inline-block'">
+                    <span id="telycam-text-fallback" class="text-blue-600 hidden">Telycam</span> 
+                    <span class="ml-3">PTZ Selector</span>
+                </h1>
+                <!-- Branding de Merlin (Logo) -->
+                <div class="text-right">
+                    <img src="https://www.merlindistributor.com/wp-content/uploads/2021/01/Merlin-Distributor-40-anos.png.webp" alt="Merlin Distributor Logo" class="h-12 w-auto ml-auto">
+                </div>
+            </div>
+            <p class="mt-4 sm:mt-2 text-lg text-gray-600">Encuentra la cámara PTZ perfecta para tu flujo de trabajo.</p>
+        </header>
+
+        <!-- Filtros -->
+        <div id="filters" class="p-6 bg-white rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Filtrar por Especificaciones</h2>
+            
+            <!-- Contenedor de filtros con grid responsivo -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                
+                <!-- Fila 1: Filtros Principales -->
+                <div>
+                    <label for="model" class="block text-sm font-medium text-gray-700">Modelo</label>
+                    <select id="model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <!-- Las opciones se llenarán automáticamente con JS -->
+                    </select>
+                </div>
+                <div>
+                    <label for="resolution" class="block text-sm font-medium text-gray-700">Max Resolución</label>
+                    <select id="resolution" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="4K/60p">4K/60p</option>
+                        <option value="1080p/60p">1080p/60p</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="sensor" class="block text-sm font-medium text-gray-700">Sensor</label>
+                    <select id="sensor" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="1 inch, 9MP">1 inch, 9MP</option>
+                        <option value="1/1.8 inch, 9MP">1/1.8 inch, 9MP</option>
+                        <option value="1/2.8 inch, 9MP">1/2.8 inch, 9MP</option>
+                        <option value="1/2.8 inch, 2.4MP">1/2.8 inch, 2.4MP</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="zoom" class="block text-sm font-medium text-gray-700">Zoom Óptico</label>
+                    <select id="zoom" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="30x">30x</option>
+                        <option value="20x">20x</option>
+                        <option value="12x">12x</option>
+                        <!-- <option value="10x">10x</option> -->
+                    </select>
+                </div>
+                <div>
+                    <label for="ndi-type" class="block text-sm font-medium text-gray-700">Tipo de NDI</label>
+                    <select id="ndi-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Full NDI">Full NDI</option>
+                        <option value="NDI|HX3">NDI|HX3</option>
+                        <option value="NDI|HX">NDI|HX</option>
+                    </select>
+                </div>
+
+                <!-- Fila 2: Features Clave y Precio -->
+                <div>
+                    <label for="auto-tracking" class="block text-sm font-medium text-gray-700">Auto Tracking</label>
+                    <select id="auto-tracking" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="pdaf" class="block text-sm font-medium text-gray-700">PDAF</label>
+                    <select id="pdaf" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="sfp" class="block text-sm font-medium text-gray-700">SFP+</label>
+                    <select id="sfp" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+
+                <!-- Fila 3: Conectividad y Otros -->
+                <div>
+                    <label for="genlock" class="block text-sm font-medium text-gray-700">Genlock</label>
+                    <select id="genlock" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                <!-- CAMBIO: 12G-SDI primero -->
+                <div>
+                    <label for="12g-sdi" class="block text-sm font-medium text-gray-700">12G-SDI</label>
+                    <select id="12g-sdi" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                <!-- CAMBIO: 3G-SDI segundo -->
+                <div>
+                    <label for="3g-sdi" class="block text-sm font-medium text-gray-700">3G-SDI</label>
+                    <select id="3g-sdi" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="hdmi" class="block text-sm font-medium text-gray-700">HDMI</label>
+                    <select id="hdmi" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="usb" class="block text-sm font-medium text-gray-700">USB</label>
+                    <select id="usb" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="USB-C">USB-C</option>
+                        <option value="USB3.0">USB 3.0</option>
+                        <option value="USB2.0">USB 2.0</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="freed" class="block text-sm font-medium text-gray-700">FreeD</label>
+                    <select id="freed" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" onchange="filterCameras()">
+                        <option value="">Todos</option>
+                        <option value="Yes">Sí</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Botones de Acción -->
+            <div class="mt-6 flex flex-wrap gap-3">
+                <button onclick="resetFilters()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                    <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Resetear Filtros
+                </button>
+                <button onclick="copyToClipboard()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                    </svg>
+                    Copiar
+                </button>
+            </div>
+        </div>
+
+        <!-- Resultados -->
+        <div class="results" id="results">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Resultados</h2>
+            
+            <!-- Aquí se insertarán las tarjetas de las cámaras -->
+            <div id="camera-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Plantilla de tarjeta (se genera con JS) -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 py-4 border-t border-gray-300">
+            <!-- CAMBIO: v3.6 a v2.0 -->
+            <p class="text-sm text-gray-500">Merlin Distributor 2025 - Telycam Selector v2.0</p>
+            <p class="text-sm text-gray-500 mt-2">Dudas o comentarios, escribe a <a href="mailto:victor.dupret@merlindistributor.com" class="text-blue-600 hover:underline">victor.dupret@merlindistributor.com</a></p>
+        </footer>
+
+    </div>
+
+    <!-- --- BANDEJA DE COMPARACIÓN --- -->
+    <div id="comparison-tray">
+        <div class="container mx-auto max-w-7xl flex justify-between items-center">
+            <div>
+                <h4 class="font-semibold text-lg mb-2">Cámaras a Comparar:</h4>
+                <ul id="compare-list">
+                    <!-- Items se añaden con JS -->
+                </ul>
+            </div>
+            <button id="compare-btn" onclick="showCompareModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed" disabled>
+                Comparar (<span id="compare-count">0</span>)
+            </button>
+        </div>
+    </div>
+
+    <!-- --- MODAL DE COMPARACIÓN --- -->
+    <div id="compare-modal">
+        <div id="compare-modal-content">
+            <div id="compare-modal-header">
+                <h2 class="text-2xl font-bold text-gray-900">Comparar Cámaras</h2>
+                <div class="flex gap-4">
+                    <!-- Botón One-Pager -->
+                    <button onclick="printCompare()" title="Generar One-Pager (Imprimir)" class="text-gray-600 hover:text-blue-600">
+                        <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.23a1.125 1.125 0 01-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0M3.456 7.281c0 1.618.65 3.11 1.799 4.162l.09.091a4.5 4.5 0 006.364 0l.09-.09a4.5 4.5 0 001.799-4.163V6.812a2.25 2.25 0 00-2.25-2.25h-5.625a2.25 2.25 0 00-2.25 2.25v.469z" />
+                        </svg>
+                    </button>
+                    <button onclick="hideCompareModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="compare-modal-body">
+                <!-- Tabla de comparación se genera con JS -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Elemento Toast para notificaciones -->
+    <div id="toast">
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        // --- Base de Datos de Cámaras (Actualizada v3.4) ---
+        const cameras = [
+            // --- Modelos Broadcast (Sensor 1" o 1/1.8") ---
+            { name: 'Explore', series: 'Explore', line: 'Broadcast Level', resolution: '4K/60p', sensor: '1 inch, 9MP', zoom: '20x', sfp: 'Yes', genlock: 'Yes', sdi12g: 'Yes', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'Full NDI, NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'Yes', price: 'US$5.999,00', link: 'https://drive.google.com/drive/folders/1GoyLjxTI2bGKHJ7BNhgKjAjAJXbUx2Jb', image: 'https://telycam.com/wp-content/uploads/2025/10/Explore-SE_1.webp', recomendado: true },
+            { name: 'Explore XE', series: 'Explore', line: 'Broadcast Level', resolution: '4K/60p', sensor: '1 inch, 9MP', zoom: '20x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'Yes', price: 'US$3.895,00', link: 'https://drive.google.com/drive/folders/1Zu_CP72iCERqLptqAWb1LDPEE6InXun-?usp=drive_link', image: 'https://telycam.com/wp-content/uploads/2025/10/Explore-SE_1.webp', recomendado: false },
+            { name: 'Explore SE', series: 'Explore', line: 'Broadcast Level', resolution: '4K/60p', sensor: '1/1.8 inch, 9MP', zoom: '30x', sfp: 'Yes', genlock: 'Yes', sdi12g: 'Yes', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'Full NDI, NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$2.999,00', link: 'https://drive.google.com/drive/folders/1ZKgDxcvEL8fT7ncogFYPahs-FoEMcdmR', image: 'https://telycam.com/wp-content/uploads/2025/10/Explore-SE_1.webp', recomendado: true },
+            
+            // --- Modelos ProAV 4K ---
+            { name: 'Vision+ 4KN 30X', series: 'Vision+', line: 'Pro AV Level', resolution: '4K/60p', sensor: '1/1.8 inch, 9MP', zoom: '30x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$2.399,00', link: 'https://drive.google.com/drive/folders/1VdpWWeASzjkSqndb1FdFi9yS7ClxDHRM?usp=sharing', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-N3-30x_1.webp', recomendado: false },
+            { name: 'Vision+ N3 30X', series: 'Vision+', line: 'Pro AV Level', resolution: '1080p/60p', sensor: '1/1.8 inch, 9MP', zoom: '30x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$2.099,00', link: 'https://drive.google.com/drive/folders/1IpEVYvErjTKwTkG8nKWqNvWer4KaKWJv?usp=sharing', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-N3-30x_1.webp', recomendado: false },
+            { name: 'Vision+ N3 20X', series: 'Vision+', line: 'Pro AV Level', resolution: '1080p/60p', sensor: '1/2.8 inch, 2.4MP', zoom: '20x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$1.799,00', link: 'https://drive.google.com/drive/folders/1oTdhjjn3O5Waur_0UmJImNrnqwXNsSV2?usp=sharing', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-N3-30x_1.webp', recomendado: false },
+            { name: 'Vision+ 4KN 12X', series: 'Vision+', line: 'Pro AV Level', resolution: '4K/60p', sensor: '1/2.8 inch, 9MP', zoom: '12x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$1.699,00', link: 'https://drive.google.com/drive/folders/1cRGch9Zrdz3vdxNx24_fSHxY4yUK_M9i?usp=sharing', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-N3-30x_1.webp', recomendado: false },
+            { name: 'Vision+ 4KN 20X', series: 'Vision+', line: 'Pro AV Level', resolution: '4K/60p', sensor: '1/1.8 inch, 9MP', zoom: '20x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB-C', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$1.599,00', link: 'https://drive.google.com/drive/folders/1OPQG2-PrMMoBOSch5s-kv4vomtu2YK1s?usp=share_link', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-N3-30x_1.webp', recomendado: false },
+            { name: 'Vision+ SE (SDI o HDMI)', series: 'Vision+', line: 'Pro AV Level', resolution: '4K/60p', sensor: '1/2.8 inch, 9MP', zoom: '12x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'SDI o HDMI (Opción)', usb: 'USB-C', hdmi: 'SDI o HDMI (Opción)', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'Yes', pdaf: 'No', price: 'US$999,00', link: 'https://drive.google.com/drive/folders/1cAzjkJGv92KVDt1q2GwLMou60ky6dHlc?usp=share_link', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-N3-30x_1.webp', recomendado: true },
+            { name: 'Vision+ 4KZ (Box)', series: 'Vision+', line: 'Pro AV Level', resolution: '4K/60p', sensor: '1/1.8 inch, 9MP', zoom: '20x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'No', usb: 'USB2.0', hdmi: 'Yes', ndi_type: 'NDI|HX3', auto_tracking: 'Yes', freed: 'No', pdaf: 'No', price: 'US$985,00', link: 'https://drive.google.com/drive/folders/1VbZ5-b4MpeViT5MglDIPGQ3Za7tFfgfx', image: 'https://telycam.com/wp-content/uploads/2025/10/Vision-4KZ_2.webp', recomendado: false },
+
+            // --- Modelos Entry 1080p (HX) ---
+            { name: 'Drive+ N 20X', series: 'Drive+', line: 'Entry Level', resolution: '1080p/60p', sensor: '1/2.8 inch, 2.4MP', zoom: '20x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB3.0', hdmi: 'Yes', ndi_type: 'NDI|HX', auto_tracking: 'No', freed: 'No', pdaf: 'No', price: 'US$1.499,00', link: 'https://drive.google.com/drive/folders/1BW05qhT9mBerXX9tF4sier-HOaxbtrPn?usp=sharing', image: 'https://telycam.com/wp-content/uploads/2025/10/Dvive-N-20x_1.webp', recomendado: false },
+            { name: 'Drive+ N 12X', series: 'Drive+', line: 'Entry Level', resolution: '1080p/60p', sensor: '1/2.8 inch, 2.4MP', zoom: '12x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'Yes', usb: 'USB3.0', hdmi: 'Yes', ndi_type: 'NDI|HX', auto_tracking: 'No', freed: 'No', pdaf: 'No', price: 'US$1.399,00', link: 'https://drive.google.com/drive/folders/1EI98AA-1zShPKMSWvEzfTuNYs2JNBrrk?usp=sharing', image: 'https://telycam.com/wp-content/uploads/2025/10/Dvive-N-20x_1.webp', recomendado: false },
+            { name: 'Drive+ SE (SDI o HDMI)', series: 'Drive+', line: 'Entry Level', resolution: '1080p/60p', sensor: '1/2.8 inch, 2.4MP', zoom: '20x', sfp: 'No', genlock: 'No', sdi12g: 'No', sdi3g: 'SDI o HDMI (Opción)', usb: 'USB3.0', hdmi: 'SDI o HDMI (Opción)', ndi_type: 'NDI|HX', auto_tracking: 'No', freed: 'No', pdaf: 'No', price: 'US$799,00', link: 'https://drive.google.com/drive/folders/177pdpcPB3Cjhv1BFnqsEI2smGf_o6t-V', image: 'https://telycam.com/wp-content/uploads/2025/10/Dvive-N-20x_1.webp', recomendado: true }
+        ];
+
+        // --- Lógica de Ordenamiento por Precio ---
+        const parsePrice = (priceStr) => {
+            if (priceStr === 'TBD') return 0; // Pone TBD al final
+            return parseFloat(priceStr.replace('US$', '').replace(/\./g, '').replace(',', '.'));
+        };
+        
+        // Ordenar de más caro a más barato por defecto
+        cameras.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
+
+        // --- Helper para Línea de Producto ---
+        function getLineName(series) {
+            if (series === 'Explore') return 'Broadcast Level';
+            if (series === 'Vision+') return 'Pro AV Level';
+            if (series === 'Drive+') return 'Entry Level';
+            return 'General';
+        }
+
+        // --- Lógica de la Aplicación ---
+        let compareItems = []; 
+
+        // --- Lógica de Notificación (Toast) ---
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // --- NUEVO: Función para poblar el select de modelos automáticamente ---
+        function populateModelSelect() {
+            const select = document.getElementById('model');
+            // Opcional: Ordenar alfabéticamente para la lista desplegable
+            const sortedCameras = [...cameras].sort((a, b) => a.name.localeCompare(b.name));
+
+            sortedCameras.forEach(camera => {
+                const option = document.createElement('option');
+                option.value = camera.name.toLowerCase(); // Valor en minúsculas para coincidir con la lógica de filtro
+                option.textContent = camera.name;
+                select.appendChild(option);
+            });
+        }
+
+        // --- Lógica de Filtros ---
+        function getFilterValues() {
+            return {
+                model: document.getElementById('model').value.toLowerCase(),
+                resolution: document.getElementById('resolution').value,
+                sensor: document.getElementById('sensor').value,
+                zoom: document.getElementById('zoom').value,
+                sfp: document.getElementById('sfp').value,
+                genlock: document.getElementById('genlock').value,
+                sdi12g: document.getElementById('12g-sdi').value,
+                sdi3g: document.getElementById('3g-sdi').value,
+                usb: document.getElementById('usb').value,
+                hdmi: document.getElementById('hdmi').value,
+                ndi_type: document.getElementById('ndi-type').value, 
+                auto_tracking: document.getElementById('auto-tracking').value,
+                freed: document.getElementById('freed').value,
+                pdaf: document.getElementById('pdaf').value
+            };
+        }
+
+        function getFilteredCameras() {
+            const f = getFilterValues();
+            
+            return cameras.filter(camera => {
+                return (!f.model || camera.name.toLowerCase().includes(f.model)) &&
+                       (!f.resolution || camera.resolution === f.resolution) &&
+                       (!f.sensor || camera.sensor === f.sensor) &&
+                       (!f.zoom || camera.zoom === f.zoom) &&
+                       (!f.sfp || camera.sfp === f.sfp) &&
+                       (!f.genlock || camera.genlock === f.genlock) &&
+                       (!f.sdi12g || camera.sdi12g === f.sdi12g) &&
+                       (!f.sdi3g || camera.sdi3g === f.sdi3g || (f.sdi3g === 'Yes' && camera.sdi3g.includes('Opción'))) &&
+                       (!f.hdmi || camera.hdmi === f.hdmi || (f.hdmi === 'Yes' && camera.hdmi.includes('Opción'))) &&
+                       (!f.usb || camera.usb === f.usb) &&
+                       (!f.ndi_type || camera.ndi_type.includes(f.ndi_type)) &&
+                       (!f.auto_tracking || camera.auto_tracking === f.auto_tracking) &&
+                       (!f.freed || camera.freed === f.freed) &&
+                       (!f.pdaf || camera.pdaf === f.pdaf);
+            });
+        }
+
+        function filterCameras() {
+            const filteredCameras = getFilteredCameras();
+            displayResults(filteredCameras);
+        }
+
+        function resetFilters() {
+            document.getElementById('filters').querySelectorAll('select, input[type="text"]').forEach(el => {
+                if (el.tagName === 'INPUT') el.value = '';
+                else el.value = '';
+            });
+
+            // Limpiar lista de comparación
+            compareItems = [];
+            updateCompareTray();
+
+            filterCameras();
+            showToast("Filtros y comparación reseteados");
+        }
+
+
+        // --- Lógica de Visualización ---
+        function displayResults(cameras) {
+            const cameraList = document.getElementById('camera-list');
+            cameraList.innerHTML = ''; 
+
+            if (cameras.length === 0) {
+                cameraList.innerHTML = `
+                    <div class="col-span-full text-center py-12 bg-white rounded-lg shadow-md">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+                        <h3 class="mt-2 text-lg font-medium text-gray-900">Sin Resultados</h3>
+                        <p class="mt-1 text-sm text-gray-500 mb-6">No se encontraron cámaras con los criterios seleccionados.</p>
+                        <button onclick="resetFilters()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                            <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            Resetear Todos los Filtros
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            cameras.forEach(camera => {
+                const card = createCameraCard(camera);
+                cameraList.innerHTML += card;
+            });
+        }
+
+        function createCameraCard(camera) {
+            let featuresHtml = '';
+            const colors = {
+                blue: 'bg-blue-100 text-blue-800',
+                green: 'bg-green-100 text-green-800',
+                purple: 'bg-purple-100 text-purple-800',
+                indigo: 'bg-indigo-100 text-indigo-800',
+                yellow: 'bg-yellow-100 text-yellow-800',
+            };
+
+            // --- CAMBIO AQUÍ: Orden Manual Estricto ---
+            
+            // 1. Conectividad / Hardware Avanzado
+            if (camera.sfp === 'Yes') {
+                featuresHtml += `<span class="inline-block ${colors.blue} rounded-full px-3 py-1 text-xs font-semibold">SFP+</span>`;
+            }
+            if (camera.genlock === 'Yes') {
+                featuresHtml += `<span class="inline-block ${colors.blue} rounded-full px-3 py-1 text-xs font-semibold">Genlock</span>`;
+            }
+
+            // 2. Salidas de Video (Orden 12G antes que 3G)
+            if (camera.sdi12g === 'Yes') {
+                featuresHtml += `<span class="inline-block ${colors.green} rounded-full px-3 py-1 text-xs font-semibold">12G-SDI</span>`;
+            }
+
+            // Lógica para 3G-SDI y HDMI (manejando opción)
+            if (camera.sdi3g.includes('Opción') || camera.hdmi.includes('Opción')) {
+                featuresHtml += `<span class="inline-block ${colors.yellow} rounded-full px-3 py-1 text-xs font-semibold">3G-SDI o HDMI (Opción)</span>`;
+            } else {
+                if (camera.sdi3g === 'Yes') {
+                    featuresHtml += `<span class="inline-block ${colors.green} rounded-full px-3 py-1 text-xs font-semibold">3G-SDI</span>`;
+                }
+                if (camera.hdmi === 'Yes') {
+                    featuresHtml += `<span class="inline-block ${colors.green} rounded-full px-3 py-1 text-xs font-semibold">HDMI</span>`;
+                }
+            }
+
+            // 3. NDI
+            if (camera.ndi_type.includes('Full NDI')) {
+                featuresHtml += `<span class="inline-block ${colors.green} rounded-full px-3 py-1 text-xs font-semibold">Full NDI</span>`;
+            }
+            if (camera.ndi_type.includes('NDI|HX3')) {
+                featuresHtml += `<span class="inline-block ${colors.purple} rounded-full px-3 py-1 text-xs font-semibold">NDI|HX3</span>`;
+            }
+            if (camera.ndi_type.includes('NDI|HX') && !camera.ndi_type.includes('NDI|HX3')) {
+                featuresHtml += `<span class="inline-block ${colors.purple} rounded-full px-3 py-1 text-xs font-semibold">NDI|HX</span>`;
+            }
+
+            // 4. AI / Features Inteligentes
+            if (camera.auto_tracking === 'Yes') {
+                featuresHtml += `<span class="inline-block ${colors.indigo} rounded-full px-3 py-1 text-xs font-semibold">Auto Tracking</span>`;
+            }
+            if (camera.freed === 'Yes') {
+                featuresHtml += `<span class="inline-block ${colors.indigo} rounded-full px-3 py-1 text-xs font-semibold">FreeD</span>`;
+            }
+            if (camera.pdaf === 'Yes') {
+                featuresHtml += `<span class="inline-block ${colors.yellow} rounded-full px-3 py-1 text-xs font-semibold">PDAF</span>`;
+            }
+            
+            let titleHtml = camera.name;
+            let sanitizedName = camera.name.replace(/[\s+()\/]/g, '-');
+            let isChecked = compareItems.some(item => item.name === camera.name) ? 'checked' : '';
+            
+            // Línea de Producto
+            let lineName = getLineName(camera.series);
+            let lineHtml = `<p class="text-xs font-semibold uppercase tracking-wider text-blue-600 mt-1">${lineName}</p>`;
+
+            // Badge Recomendado
+            let recomendadoBadge = '';
+            if (camera.recomendado) {
+                recomendadoBadge = `
+                <div class="mt-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <svg class="-ml-0.5 mr-1 h-3 w-3 text-yellow-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        Recomendado por Merlin Distributor
+                    </span>
+                </div>`;
+            }
+
+            // --- CAMBIO AQUÍ: Agregado MSRP ---
+            return `
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl flex flex-col">
+                    <div class="p-6 flex-grow">
+                        <div class="flex gap-4 mb-4">
+                            <div class="flex-shrink-0">
+                                <img src="${camera.image}" alt="${camera.name}" class="w-24 h-24 object-cover rounded-lg bg-gray-200" onerror="this.src='https://placehold.co/100x100/e2e8f0/9ca3af?text=Telycam'; this.classList.add('object-contain');">
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="text-2xl font-bold text-gray-900">${titleHtml}</h3>
+                                ${lineHtml}
+                                <p class="text-xl font-semibold text-gray-800 mt-2">
+                                    ${camera.price} 
+                                    <span class="text-xs font-normal text-gray-500 align-middle ml-1">MSRP</span>
+                                </p>
+                                ${recomendadoBadge}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-700">
+                            <span><strong>Resolución:</strong> ${camera.resolution}</span>
+                            <span><strong>Sensor:</strong> ${camera.sensor.includes('1 inch') ? camera.sensor.replace('1 inch', '<strong class="text-gray-900">1 pulgada</strong>') : camera.sensor}</span>
+                            <span><strong>Zoom:</strong> ${camera.zoom}</span>
+                            <span><strong>NDI:</strong> ${camera.ndi_type}</span>
+                        </div>
+
+                        <div class="mt-5">
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Features Clave</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${featuresHtml.length > 0 ? featuresHtml : '<span class="text-xs text-gray-400">Funciones estándar.</span>'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 bg-gray-50 flex items-center justify-between flex-wrap gap-4">
+                        <a href="${camera.link}" target="_blank" class="inline-flex items-center justify-center bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                            Ver Ficha Técnica
+                        </a>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="compare-${sanitizedName}" data-name="${camera.name}" onchange="toggleCompare(this)" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" ${isChecked}>
+                            <label for="compare-${sanitizedName}" class="ml-2 block text-sm text-gray-700">Comparar</label>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Lógica de Comparación ---
+
+        function toggleCompare(element) {
+            const cameraName = element.dataset.name;
+            const camera = cameras.find(c => c.name === cameraName);
+            if (!camera) return;
+
+            const index = compareItems.findIndex(item => item.name === cameraName);
+
+            if (element.checked) {
+                if (index === -1) {
+                    if (compareItems.length >= 4) {
+                        showToast("Puedes comparar hasta 4 cámaras a la vez.");
+                        element.checked = false;
+                        return;
+                    }
+                    compareItems.push(camera);
+                }
+            } else {
+                if (index !== -1) {
+                    compareItems.splice(index, 1);
+                }
+            }
+            updateCompareTray();
+        }
+
+        function updateCompareTray() {
+            const tray = document.getElementById('comparison-tray');
+            const list = document.getElementById('compare-list');
+            const count = document.getElementById('compare-count');
+            const btn = document.getElementById('compare-btn');
+
+            list.innerHTML = '';
+            
+            if (compareItems.length === 0) {
+                tray.classList.remove('show');
+                return;
+            }
+
+            compareItems.forEach(item => {
+                list.innerHTML += `<li>${item.name} <span onclick="removeFromCompare('${item.name}')" title="Quitar">×</span></li>`;
+            });
+
+            count.textContent = compareItems.length;
+            
+            if (compareItems.length >= 2) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
+
+            tray.classList.add('show');
+        }
+
+        function removeFromCompare(cameraName) {
+            compareItems = compareItems.filter(item => item.name !== cameraName);
+            
+            let sanitizedName = cameraName.replace(/[\s+()\/]/g, '-');
+            const checkbox = document.getElementById(`compare-${sanitizedName}`);
+            if (checkbox) {
+                checkbox.checked = false;
+            }
+            
+            updateCompareTray();
+        }
+
+        function showCompareModal() {
+            const body = document.getElementById('compare-modal-body');
+            const modal = document.getElementById('compare-modal');
+            body.innerHTML = ''; // Limpiar modal
+
+            const features = [
+                { key: 'line', label: 'Línea de Producto' },
+                { key: 'series', label: 'Serie' },
+                { key: 'price', label: 'Precio' }, // Label simplificado, agregamos MSRP en el valor
+                { key: 'resolution', label: 'Resolución' },
+                { key: 'sensor', label: 'Sensor' },
+                { key: 'zoom', label: 'Zoom Óptico' },
+                { key: 'ndi_type', label: 'Tipo de NDI' }, 
+                { key: 'sfp', label: 'SFP+' },
+                { key: 'genlock', label: 'Genlock' },
+                { key: 'sdi12g', label: '12G-SDI' }, // Reordenado
+                { key: 'sdi3g', label: '3G-SDI' },   // Reordenado
+                { key: 'hdmi', label: 'HDMI' },
+                { key: 'usb', label: 'USB' },
+                { key: 'auto_tracking', label: 'Auto Tracking' },
+                { key: 'freed', label: 'FreeD' },
+                { key: 'pdaf', label: 'PDAF' }
+            ];
+
+            let table = '<table>';
+            
+            // --- Fila de Cabecera (Nombres) ---
+            table += '<thead><tr><th>Feature</th>';
+            compareItems.forEach(item => {
+                table += `<th>${item.name}</th>`;
+            });
+            table += '</tr></thead>';
+            
+            // --- Filas de Features ---
+            table += '<tbody>';
+            features.forEach(feature => {
+                table += `<tr><td>${feature.label}</td>`;
+                compareItems.forEach(item => {
+                    let value = item[feature.key];
+
+                    if (feature.key === 'sensor' && typeof value === 'string' && value.includes('1 inch')) {
+                        value = value.replace('1 inch', '<strong>1 pulgada</strong>');
+                    }
+                    
+                    if (typeof value === 'boolean') {
+                        value = value ? 'Yes' : 'No';
+                    }
+                    value = value || 'N/A'; // Manejo de undefined o null
+
+                    // --- Agregado MSRP en tabla ---
+                    if (feature.key === 'price') {
+                        value = `${value} <span class="text-xs text-gray-500 ml-1">MSRP</span>`;
+                    }
+                    
+                    // Aplicar estilos
+                    if (value === 'Yes') {
+                        value = '<span class="highlight-yes">Sí</span>';
+                    } else if (value === 'No' || value === 'N/A') {
+                        value = '<span class="highlight-no">No</span>';
+                    } else if (String(value).includes('Opción')) { 
+                        value = `<span class="highlight-sku">${value}</span>`;
+                    }
+                    table += `<td>${value}</td>`;
+                });
+                table += '</tr>';
+            });
+            table += '</tbody></table>';
+
+            body.innerHTML = table;
+            modal.classList.add('show');
+        }
+
+        function hideCompareModal() {
+            const modal = document.getElementById('compare-modal');
+            modal.classList.remove('show');
+        }
+
+        // --- NUEVO: Función de "One-Pager" (Imprimir) ---
+        function printCompare() {
+            const tableHtml = document.getElementById('compare-modal-body').innerHTML;
+            const printWindow = window.open('', '_blank');
+            
+            printWindow.document.write('<html><head><title>Ficha Comparativa Telycam - Merlin Distributor</title>');
+            printWindow.document.write('<style>');
+            printWindow.document.write(`
+                @import url('https://rsms.me/inter/inter.css');
+                body { font-family: 'Inter', sans-serif; margin: 2rem; }
+                table { width: 100%; border-collapse: collapse; margin-top: 2rem; }
+                th, td { border: 1px solid #d1d5db; padding: 0.75rem; text-align: left; font-size: 0.875rem; }
+                th { background-color: #f3f4f6; }
+                td:first-child { font-weight: 600; background-color: #f9fafb; }
+                h1 { font-size: 1.5rem; font-weight: bold; }
+                .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2563eb; padding-bottom: 1rem; }
+                .header-title { font-size: 1.875rem; font-weight: bold; }
+                .header-logo { text-align: right; }
+                .header-logo img { max-height: 48px; width: auto; }
+                .footer { text-align: center; margin-top: 2rem; font-size: 0.75rem; color: #6b7280; }
+                .highlight-yes { color: #059669; font-weight: 600; }
+                .highlight-no { color: #dc2626; }
+                .highlight-sku { color: #ca8a04; font-weight: 600; }
+                /* Estilos para MSRP en impresión */
+                .text-xs { font-size: 0.75rem; }
+                .text-gray-500 { color: #6b7280; }
+                .ml-1 { margin-left: 0.25rem; }
+                
+                @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            `);
+            printWindow.document.write('</style></head><body>');
+            
+            // Header
+            printWindow.document.write(`
+                <div class="header">
+                    <div class="header-title">Ficha Comparativa Telycam</div>
+                    <div class="header-logo">
+                         <img src="https://www.merlindistributor.com/wp-content/uploads/2021/01/Merlin-Distributor-40-anos.png.webp" alt="Merlin Distributor Logo">
+                    </div>
+                </div>
+            `);
+            
+            // Contenido (Tabla)
+            printWindow.document.write(tableHtml);
+
+            // Footer (CAMBIO a v2.0 también aquí)
+            printWindow.document.write('<div class="footer">Merlin Distributor 2025 - Telycam Selector v2.0</div>');
+            
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            
+            // Espera a que el contenido se cargue antes de imprimir
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+
+        // --- Funciones de Copiar y Reset ---
+
+        function copyToClipboard() {
+            const filteredCameras = getFilteredCameras();
+            const headers = ['Model', 'Línea', 'Series', 'Recomendado', 'Max Resolution', 'Sensor', 'Zoom', 'Tipo NDI', 'SFP+', 'Genlock', '12G-SDI', '3G-SDI', 'HDMI', 'USB', 'Auto Tracking', 'FreeD', 'PDAF', 'MSRP Price', 'Datasheet'];
+            let clipboardContent = headers.join("\t") + "\r\n"; 
+
+            filteredCameras.forEach(camera => {
+                const row = [
+                    camera.name, camera.line, camera.series, camera.recomendado ? 'Si' : 'No', camera.resolution, camera.sensor, camera.zoom,
+                    camera.ndi_type,
+                    camera.sfp, camera.genlock, 
+                    // CAMBIO: 12G-SDI y luego 3G-SDI en el orden de copiado
+                    camera.sdi12g, 
+                    camera.sdi3g,
+                    camera.hdmi, camera.usb, 
+                    camera.auto_tracking, camera.freed, camera.pdaf,
+                    camera.price, camera.link
+                ];
+                clipboardContent += row.join("\t") + "\r\n";
+            });
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(clipboardContent)
+                    .then(() => {
+                        showToast("¡Datos copiados al portapapeles!");
+                    })
+                    .catch(err => {
+                        console.error('Error al copiar con API moderna: ', err);
+                        copyToClipboardFallback(clipboardContent); 
+                    });
+            } else {
+                copyToClipboardFallback(clipboardContent);
+            }
+        }
+
+        function copyToClipboardFallback(text) {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.style.position = 'fixed'; 
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand("copy");
+                showToast("¡Datos copiados al portapapeles!");
+            } catch (err) {
+                showToast("Error al copiar los datos.");
+                console.error('Error al copiar (fallback): ', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // --- Carga Inicial ---
+        document.addEventListener('DOMContentLoaded', () => {
+            populateModelSelect(); // Llenar el select al cargar
+            filterCameras(); 
+        });
+    </script>
+</body>
+</html>
